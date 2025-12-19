@@ -3,51 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Errand - Dashboard</title>
+    <title>Errand - Real-time Marketplace</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-auth-compat.js"></script>
 </head>
-<body class="bg-gray-100 min-h-screen pb-10">
+<body class="bg-gray-50 min-h-screen font-sans">
 
-    <div id="auth-screen" class="flex items-center justify-center min-h-screen p-4">
-        <div class="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md">
-            <h1 class="text-3xl font-black text-green-600 mb-2">ERRAND</h1>
-            <p class="text-gray-500 mb-6">Join the errand marketplace</p>
-            <input type="email" id="email" placeholder="Email" class="w-full p-4 mb-3 border rounded-xl outline-none">
-            <input type="password" id="password" placeholder="Password" class="w-full p-4 mb-6 border rounded-xl outline-none">
+    <div id="auth-screen" class="flex flex-col items-center justify-center min-h-screen p-6 text-center">
+        <div class="bg-white p-8 rounded-3xl shadow-2xl w-full max-w-md">
+            <h1 class="text-4xl font-black text-green-600 mb-2 italic tracking-tighter">ERRAND</h1>
+            <p class="text-gray-500 mb-8 font-medium">Uber for Errands in Kenya</p>
             
-            <div class="flex gap-2 mb-6">
-                <button onclick="handleAuth('poster')" class="w-1/2 bg-green-600 text-white py-3 rounded-xl font-bold">Join as Poster</button>
-                <button onclick="handleAuth('runner')" class="w-1/2 bg-black text-white py-3 rounded-xl font-bold">Join as Runner</button>
+            <div class="space-y-4">
+                <button onclick="signInWithGoogle('poster')" class="w-full flex items-center justify-center gap-3 bg-white border-2 border-gray-100 py-4 rounded-2xl font-bold hover:bg-gray-50 transition active:scale-95 shadow-sm">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20">
+                    Sign in as Poster
+                </button>
+                
+                <button onclick="signInWithGoogle('runner')" class="w-full flex items-center justify-center gap-3 bg-black text-white py-4 rounded-2xl font-bold hover:opacity-90 transition active:scale-95 shadow-lg">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" width="20" class="brightness-200">
+                    Sign in as Runner
+                </button>
             </div>
+            <p class="mt-6 text-[10px] text-gray-400 leading-tight">By signing in, you agree to Errand's platform fees (15% commission on all completed tasks).</p>
         </div>
     </div>
 
     <div id="dashboard" class="hidden">
-        <nav class="bg-white border-b p-4 flex justify-between items-center sticky top-0 z-50">
-            <span id="display-role" class="font-bold text-xs uppercase tracking-widest text-green-600"></span>
-            <button onclick="logout()" class="text-red-500 text-sm font-bold">Logout</button>
+        <nav class="bg-white border-b p-4 flex justify-between items-center sticky top-0 z-50 shadow-sm">
+            <div class="flex items-center gap-2">
+                <div id="user-photo" class="w-8 h-8 rounded-full bg-gray-200 overflow-hidden border"></div>
+                <span id="display-role" class="font-black text-[10px] uppercase bg-green-100 text-green-700 px-2 py-1 rounded"></span>
+            </div>
+            <button onclick="logout()" class="text-red-500 text-xs font-bold border border-red-100 px-3 py-1 rounded-lg">Logout</button>
         </nav>
 
         <div id="view-poster" class="hidden p-4 max-w-lg mx-auto">
-            <h2 class="text-2xl font-bold mb-4">My Errands</h2>
-            <div class="bg-white p-4 rounded-xl mb-6 shadow-sm border">
-                <input type="text" id="tTitle" placeholder="Task Title" class="w-full p-3 mb-2 border rounded-lg">
-                <input type="text" id="tLoc" placeholder="Location" class="w-full p-3 mb-2 border rounded-lg">
-                <button onclick="createNewErrand()" class="w-full bg-green-600 text-white py-3 rounded-lg font-bold">Post New Task</button>
+            <h2 class="text-xl font-bold mb-4">Post an Errand</h2>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 mb-8">
+                <input type="text" id="tTitle" placeholder="What do you need? (e.g. Get groceries)" class="w-full p-4 mb-3 bg-gray-50 rounded-xl outline-none border focus:border-green-500 transition">
+                <input type="text" id="tLoc" placeholder="Where? (e.g. Kilimani)" class="w-full p-4 mb-3 bg-gray-50 rounded-xl outline-none border">
+                <button onclick="createNewErrand()" class="w-full bg-green-600 text-white py-4 rounded-xl font-black shadow-lg shadow-green-100 active:scale-95 transition">Post to Marketplace</button>
             </div>
+            
+            <h2 class="text-xl font-bold mb-4">My Requests & Bids</h2>
             <div id="my-errands-list" class="space-y-4"></div>
         </div>
 
-        <div id="view-runner" class="hidden p-4 max-w-lg mx-auto">
-            <h2 class="text-2xl font-bold mb-4">Available Work</h2>
+        <div id="view-runner" class="hidden p-4 max-w-lg mx-auto text-center">
+            <h2 class="text-left text-xl font-bold mb-4">Live Errands Feed</h2>
             <div id="all-errands-list" class="space-y-4"></div>
         </div>
     </div>
 
     <script>
+        // --- CONFIGURATION ---
         const firebaseConfig = {
             apiKey: "AIzaSyDn3dGe2dhgfrqwYENgWA1biEW8ngXv068",
             authDomain: "office-manager-pro-1b6ae.firebaseapp.com",
@@ -60,45 +73,48 @@
         firebase.initializeApp(firebaseConfig);
         const db = firebase.firestore();
         const auth = firebase.auth();
+        const googleProvider = new firebase.auth.GoogleAuthProvider();
 
         let currentUser = null;
         let userRole = null;
 
-        // --- AUTH LOGIC ---
-        async function handleAuth(role) {
-            const email = document.getElementById('email').value;
-            const pass = document.getElementById('password').value;
-            
+        // --- AUTH FUNCTIONS ---
+        async function signInWithGoogle(role) {
             try {
-                const cred = await auth.createUserWithEmailAndPassword(email, pass);
-                await db.collection('users').doc(cred.user.uid).set({
-                    email: email,
-                    role: role,
-                    uid: cred.user.uid
-                });
-                alert("Account Created!");
-            } catch (err) {
-                // If account exists, just log in
-                await auth.signInWithEmailAndPassword(email, pass);
-            }
+                const result = await auth.signInWithPopup(googleProvider);
+                const user = result.user;
+                const userDoc = await db.collection('users').doc(user.uid).get();
+
+                if (!userDoc.exists) {
+                    await db.collection('users').doc(user.uid).set({
+                        name: user.displayName,
+                        email: user.email,
+                        role: role,
+                        uid: user.uid,
+                        photo: user.photoURL
+                    });
+                }
+            } catch (err) { alert(err.message); }
         }
 
         auth.onAuthStateChanged(async (user) => {
             if (user) {
-                currentUser = user;
                 const userDoc = await db.collection('users').doc(user.uid).get();
-                userRole = userDoc.data().role;
-                setupDashboard();
+                if (userDoc.exists) {
+                    currentUser = user;
+                    userRole = userDoc.data().role;
+                    document.getElementById('user-photo').innerHTML = `<img src="${user.photoURL}">`;
+                    showDashboard();
+                }
             } else {
                 showAuth();
             }
         });
 
-        function setupDashboard() {
+        function showDashboard() {
             document.getElementById('auth-screen').classList.add('hidden');
             document.getElementById('dashboard').classList.remove('hidden');
-            document.getElementById('display-role').innerText = `Role: ${userRole}`;
-            
+            document.getElementById('display-role').innerText = userRole;
             if(userRole === 'poster') {
                 document.getElementById('view-poster').classList.remove('hidden');
                 loadPosterErrands();
@@ -108,62 +124,66 @@
             }
         }
 
-        // --- POSTER LOGIC ---
+        // --- POSTER FUNCTIONS ---
         async function createNewErrand() {
             const title = document.getElementById('tTitle').value;
             const loc = document.getElementById('tLoc').value;
+            if(!title || !loc) return alert("Fill all fields");
             await db.collection('errands').add({
                 title, location: loc, posterId: currentUser.uid, status: 'OPEN', createdAt: new Date()
             });
-            document.getElementById('tTitle').value = '';
+            document.getElementById('tTitle').value = ''; document.getElementById('tLoc').value = '';
         }
 
         function loadPosterErrands() {
-            db.collection('errands').where('posterId', '==', currentUser.uid).onSnapshot(snap => {
+            db.collection('errands').where('posterId', '==', currentUser.uid).orderBy('createdAt','desc').onSnapshot(snap => {
                 const list = document.getElementById('my-errands-list');
                 list.innerHTML = "";
                 snap.forEach(doc => {
                     const data = doc.data();
                     list.innerHTML += `
-                        <div class="bg-white p-4 rounded-xl border">
-                            <h3 class="font-bold">${data.title} (${data.status})</h3>
-                            <div id="bids-${doc.id}" class="mt-3 pt-3 border-t text-sm text-gray-500 italic">No bids yet...</div>
+                        <div class="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
+                            <h3 class="font-bold text-lg">${data.title}</h3>
+                            <p class="text-xs text-gray-400 mb-3">${data.location} • Status: ${data.status}</p>
+                            <div id="bids-${doc.id}" class="space-y-2 border-t pt-3">
+                                <p class="text-[10px] text-gray-400 uppercase font-bold">Waiting for bids...</p>
+                            </div>
                         </div>`;
-                    loadBidsForErrand(doc.id);
+                    loadBidsForPoster(doc.id);
                 });
             });
         }
 
-        function loadBidsForErrand(errandId) {
+        function loadBidsForPoster(errandId) {
             db.collection('bids').where('errandId', '==', errandId).onSnapshot(snap => {
                 const bidDiv = document.getElementById(`bids-${errandId}`);
                 if(snap.empty) return;
-                bidDiv.innerHTML = "<strong>Bids:</strong><br>";
+                bidDiv.innerHTML = "<p class='text-[10px] font-bold text-green-600 mb-2 uppercase'>Runner Bids:</p>";
                 snap.forEach(doc => {
                     const bid = doc.data();
                     bidDiv.innerHTML += `
-                        <div class="flex justify-between items-center bg-gray-50 p-2 mt-1 rounded">
-                            <span>KES ${bid.amount}</span>
-                            <button onclick="acceptBid('${errandId}', '${doc.id}', ${bid.amount})" class="bg-green-600 text-white px-2 py-1 rounded text-xs font-bold">Accept</button>
+                        <div class="flex justify-between items-center bg-green-50 p-3 rounded-xl border border-green-100">
+                            <span class="font-bold text-green-800">KES ${bid.amount}</span>
+                            <button onclick="acceptBid('${errandId}', '${doc.id}', ${bid.amount})" class="bg-green-600 text-white px-4 py-2 rounded-lg text-xs font-black uppercase">Accept</button>
                         </div>`;
                 });
             });
         }
 
-        // --- RUNNER LOGIC ---
+        // --- RUNNER FUNCTIONS ---
         function loadAllErrands() {
             db.collection('errands').where('status', '==', 'OPEN').onSnapshot(snap => {
                 const list = document.getElementById('all-errands-list');
-                list.innerHTML = "";
+                list.innerHTML = snap.empty ? "<p class='py-10 text-gray-400'>No jobs available right now.</p>" : "";
                 snap.forEach(doc => {
                     const data = doc.data();
                     list.innerHTML += `
-                        <div class="bg-white p-4 rounded-xl border">
-                            <h3 class="font-bold">${data.title}</h3>
-                            <p class="text-sm text-gray-500">${data.location}</p>
-                            <div class="mt-3 flex gap-2">
-                                <input type="number" id="amt-${doc.id}" placeholder="Your Bid" class="border p-2 rounded w-full text-sm">
-                                <button onclick="placeBid('${doc.id}')" class="bg-black text-white px-4 py-2 rounded text-sm font-bold">Bid</button>
+                        <div class="bg-white p-5 rounded-2xl border text-left shadow-sm">
+                            <h3 class="font-bold text-lg">${data.title}</h3>
+                            <p class="text-green-600 text-xs font-bold mb-4 italic">📍 ${data.location}</p>
+                            <div class="flex gap-2 border-t pt-4">
+                                <input type="number" id="amt-${doc.id}" placeholder="Your Price" class="w-full p-2 bg-gray-50 rounded-lg text-sm border outline-none">
+                                <button onclick="placeBid('${doc.id}')" class="bg-black text-white px-6 py-2 rounded-lg text-sm font-black">BID</button>
                             </div>
                         </div>`;
                 });
@@ -172,20 +192,24 @@
 
         async function placeBid(errandId) {
             const amt = document.getElementById(`amt-${errandId}`).value;
+            if(!amt) return alert("Enter an amount");
             await db.collection('bids').add({
-                errandId, amount: Number(amt), runnerId: currentUser.uid, status: 'PENDING'
+                errandId, amount: Number(amt), runnerId: currentUser.uid, timestamp: new Date()
             });
-            alert("Bid Placed!");
+            alert("Bid sent to the Poster!");
         }
 
         async function acceptBid(errandId, bidId, amount) {
-            // Update the Errand with the final price and chosen runner
-            await db.collection('errands').doc(errandId).update({
-                status: 'PAYMENT_PENDING',
-                finalPrice: amount,
-                acceptedBidId: bidId
-            });
-            alert(`Bid Accepted! Price: KES ${amount}. Time for M-Pesa.`);
+            const commission = amount * 0.15;
+            const runnerPay = amount * 0.85;
+            if(confirm(`Accept this bid?\n\nTotal: KES ${amount}\nRunner gets: KES ${runnerPay}\nCompany Fee: KES ${commission}`)) {
+                await db.collection('errands').doc(errandId).update({
+                    status: 'PENDING_PAYMENT',
+                    finalPrice: amount,
+                    acceptedBidId: bidId
+                });
+                alert("Order updated. M-Pesa Payment integration is next!");
+            }
         }
 
         function logout() { auth.signOut(); location.reload(); }
