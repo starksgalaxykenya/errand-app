@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Errand | Client Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <nav class="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center sticky top-0 z-10">
+        <div class="flex items-center gap-2">
+            <div class="w-8 h-8 bg-lime-500 rounded flex items-center justify-center">
+                <i data-lucide="package" class="text-white w-5 h-5"></i>
+            </div>
+            <span class="text-xl font-bold text-gray-800 tracking-tight">Errand</span>
+            <span class="ml-2 px-2 py-0.5 bg-lime-100 text-lime-700 text-xs font-bold rounded uppercase tracking-widest">Client</span>
+        </div>
+        <div id="user-profile" class="flex items-center gap-3">
+            <img id="user-avatar" src="" class="w-10 h-10 rounded-full border border-lime-200">
+        </div>
+    </nav>
+
+    <main class="max-w-4xl mx-auto p-6">
+        <div class="flex justify-between items-end mb-8">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900">My Errands</h1>
+                <p class="text-gray-500">Post new requests and manage active tasks.</p>
+            </div>
+            <button onclick="toggleModal(true)" class="bg-lime-500 hover:bg-lime-600 text-white font-bold py-3 px-6 rounded-xl flex items-center gap-2 shadow-lg shadow-lime-200 transition-all">
+                <i data-lucide="plus-circle" class="w-5 h-5"></i>
+                Post New Errand
+            </button>
+        </div>
+
+        <div id="errands-list" class="space-y-4">
+            <div class="animate-pulse flex space-x-4 p-6 bg-white rounded-xl shadow-sm">
+                <div class="flex-1 space-y-4 py-1">
+                    <div class="h-4 bg-gray-200 rounded w-3/4"></div>
+                    <div class="space-y-2">
+                        <div class="h-4 bg-gray-200 rounded"></div>
+                        <div class="h-4 bg-gray-200 rounded w-5/6"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="errand-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white w-full max-w-lg rounded-2xl p-8 relative shadow-2xl">
+            <button onclick="toggleModal(false)" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600">
+                <i data-lucide="x" class="w-6 h-6"></i>
+            </button>
+            <h2 class="text-2xl font-bold mb-6">Request an Errand</h2>
+            
+            <form id="post-errand-form" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">What do you need help with?</label>
+                    <input type="text" id="title" required placeholder="e.g., Grocery Delivery, Lawn Mowing" class="w-full border-2 border-gray-100 rounded-xl p-3 focus:border-lime-500 outline-none">
+                </div>
+                <div>
+                    <label class="block text-sm font-semibold mb-1 text-gray-700">Description</label>
+                    <textarea id="desc" rows="3" required placeholder="Details about the task..." class="w-full border-2 border-gray-100 rounded-xl p-3 focus:border-lime-500 outline-none"></textarea>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-semibold mb-1 text-gray-700">Min Budget ($)</label>
+                        <input type="number" id="min-price" required class="w-full border-2 border-gray-100 rounded-xl p-3 focus:border-lime-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold mb-1 text-gray-700">Max Budget ($)</label>
+                        <input type="number" id="max-price" required class="w-full border-2 border-gray-100 rounded-xl p-3 focus:border-lime-500 outline-none">
+                    </div>
+                </div>
+                <button type="submit" class="w-full bg-lime-500 text-white font-bold py-4 rounded-xl hover:bg-lime-600 transition-all shadow-lg shadow-lime-100">
+                    Confirm & Post Request
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, where, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        // Firebase Config
+        const firebaseConfig = {
+            apiKey: "AIzaSyDn3dGe2dhgfrqwYENgWA1biEW8ngXv068",
+            authDomain: "office-manager-pro-1b6ae.firebaseapp.com",
+            projectId: "office-manager-pro-1b6ae",
+            storageBucket: "office-manager-pro-1b6ae.firebasestorage.app",
+            messagingSenderId: "202156442292",
+            appId: "1:202156442292:web:664d17e9c8e75535168de1"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        const modal = document.getElementById('errand-modal');
+        const form = document.getElementById('post-errand-form');
+        const errandsList = document.getElementById('errands-list');
+
+        // Modal Controls
+        window.toggleModal = (show) => {
+            modal.style.display = show ? 'flex' : 'none';
+        }
+
+        // Auth & UI Setup
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                document.getElementById('user-avatar').src = user.photoURL;
+                loadMyErrands(user.uid);
+            } else {
+                window.location.href = "index.html";
+            }
+        });
+
+        // Create Errand
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const user = auth.currentUser;
+            
+            const newErrand = {
+                clientId: user.uid,
+                clientName: user.displayName,
+                title: document.getElementById('title').value,
+                description: document.getElementById('desc').value,
+                budgetMin: Number(document.getElementById('min-price').value),
+                budgetMax: Number(document.getElementById('max-price').value),
+                status: 'OPEN',
+                createdAt: serverTimestamp()
+            };
+
+            try {
+                await addDoc(collection(db, "errands"), newErrand);
+                form.reset();
+                toggleModal(false);
+            } catch (err) {
+                console.error(err);
+                alert("Failed to post errand.");
+            }
+        });
+
+        // Load Errands Real-time
+        function loadMyErrands(uid) {
+            const q = query(collection(db, "errands"), where("clientId", "==", uid));
+            
+            onSnapshot(q, (snapshot) => {
+                errandsList.innerHTML = '';
+                if (snapshot.empty) {
+                    errandsList.innerHTML = `<div class="text-center py-20 bg-white rounded-xl border-2 border-dashed border-gray-100">
+                        <p class="text-gray-400">You haven't posted any errands yet.</p>
+                    </div>`;
+                    return;
+                }
+
+                snapshot.forEach((doc) => {
+                    const errand = doc.data();
+                    const statusColor = errand.status === 'OPEN' ? 'bg-blue-100 text-blue-600' : 'bg-lime-100 text-lime-600';
+                    
+                    errandsList.innerHTML += `
+                        <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex justify-between items-start">
+                            <div>
+                                <div class="flex items-center gap-3 mb-2">
+                                    <span class="text-xs font-bold uppercase tracking-widest px-2 py-1 rounded ${statusColor}">
+                                        ${errand.status}
+                                    </span>
+                                    <h3 class="font-bold text-lg text-gray-900">${errand.title}</h3>
+                                </div>
+                                <p class="text-gray-600 mb-4">${errand.description}</p>
+                                <div class="flex items-center gap-4 text-sm font-medium text-gray-500">
+                                    <span class="flex items-center gap-1"><i data-lucide="banknote" class="w-4 h-4"></i> Budget: $${errand.budgetMin} - $${errand.budgetMax}</span>
+                                </div>
+                            </div>
+                            <button class="text-lime-600 font-semibold hover:bg-lime-50 px-4 py-2 rounded-lg transition-colors">
+                                View Bids (0)
+                            </button>
+                        </div>
+                    `;
+                    lucide.createIcons();
+                });
+            });
+        }
+
+        lucide.createIcons();
+    </script>
+</body>
+</html>
