@@ -109,14 +109,23 @@
         }
 
         // Auth & UI Setup
-        onAuthStateChanged(auth, (user) => {
-            if (user) {
-                document.getElementById('user-avatar').src = user.photoURL;
-                loadMyErrands(user.uid);
-            } else {
-                window.location.href = "index.html";
-            }
-        });
+        // Add this inside the onAuthStateChanged block in client.html
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        // Double check Firestore to ensure this user is actually a Client
+        const userDoc = await getDoc(doc(db, "users", user.uid));
+        if (userDoc.exists() && userDoc.data().role === 'client') {
+            document.getElementById('user-avatar').src = user.photoURL;
+            loadMyErrands(user.uid);
+        } else {
+            // If they are a Runner trying to access Client page, send them away
+            alert("Access Denied: You are registered as a Runner.");
+            window.location.href = "index.html"; 
+        }
+    } else {
+        window.location.href = "index.html";
+    }
+});
 
         // Create Errand
         form.addEventListener('submit', async (e) => {
