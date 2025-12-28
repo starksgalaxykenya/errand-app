@@ -121,17 +121,16 @@
             redirectToDashboard(role);
         };
 
-        function redirectToDashboard(role) {
-            console.log(`Redirecting to ${role} dashboard...`);
-            // In a real app, you'd redirect: window.location.href = `/${role}-dashboard.html`;
-            document.body.innerHTML = `
-                <div class="text-center">
-                    <h1 class="text-2xl font-bold text-lime-600">Welcome, ${role}!</h1>
-                    <p class="text-gray-600">Authenticated as ${auth.currentUser.email}</p>
-                    <button onclick="location.reload()" class="mt-4 text-sm underline text-gray-400">Sign Out (Simulated)</button>
-                </div>
-            `;
-        }
+      function redirectToDashboard(role) {
+    console.log(`Redirecting to ${role} dashboard...`);
+    
+    // This logic sends the user to the specific page based on their role
+    if (role === 'client') {
+        window.location.href = 'client.html';
+    } else if (role === 'runner') {
+        window.location.href = 'runner.html';
+    }
+}
 
         // Initialize Icons
         lucide.createIcons();
