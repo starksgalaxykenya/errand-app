@@ -23,14 +23,23 @@
     </nav>
 
     <main class="max-w-4xl mx-auto p-6">
-        <div class="mb-8">
-            <h1 class="text-2xl font-bold text-gray-900">Available Errands</h1>
-            <p class="text-gray-500">Browse requests and place your bids.</p>
-        </div>
+        <section class="mb-12">
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <i data-lucide="clock" class="text-lime-600"></i> My Active Tasks
+            </h2>
+            <div id="active-tasks" class="space-y-4">
+                <p class="text-gray-400 italic text-sm">No active tasks yet.</p>
+            </div>
+        </section>
 
-        <div id="available-errands" class="space-y-6">
-            <div class="text-center py-10"><p class="text-gray-400 animate-pulse">Scanning for errands...</p></div>
-        </div>
+        <section>
+            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <i data-lucide="search" class="text-lime-600"></i> Browse Errands
+            </h2>
+            <div id="available-errands" class="space-y-4">
+                <div class="text-center py-10"><p class="text-gray-400 animate-pulse">Scanning...</p></div>
+            </div>
+        </section>
     </main>
 
     <div id="bid-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center p-4 z-50">
@@ -40,27 +49,27 @@
             
             <div class="space-y-6">
                 <div>
-                    <label class="block text-sm font-semibold mb-2">How much will you charge the client?</label>
+                    <label class="block text-sm font-semibold mb-2 text-gray-700">How much will you charge?</label>
                     <div class="relative">
                         <span class="absolute left-4 top-3 text-gray-400 font-bold">$</span>
                         <input type="number" id="bid-amount" oninput="calculateFees(this.value)" placeholder="0.00" class="w-full border-2 border-gray-100 rounded-xl p-3 pl-8 focus:border-lime-500 outline-none text-lg font-bold">
                     </div>
                 </div>
 
-                <div class="bg-gray-50 rounded-xl p-4 space-y-2 border border-gray-100">
+                <div class="bg-lime-50 rounded-xl p-4 space-y-2 border border-lime-100">
                     <div class="flex justify-between text-sm">
-                        <span class="text-gray-500">Platform Fee (20%)</span>
+                        <span class="text-gray-600">Platform Fee (20%)</span>
                         <span class="text-red-500 font-medium" id="fee-display">-$0.00</span>
                     </div>
-                    <div class="flex justify-between border-t pt-2 font-bold text-gray-800">
+                    <div class="flex justify-between border-t border-lime-200 pt-2 font-bold text-gray-800">
                         <span>Your Take-home</span>
-                        <span class="text-lime-600" id="takehome-display">$0.00</span>
+                        <span class="text-lime-700" id="takehome-display">$0.00</span>
                     </div>
                 </div>
 
                 <div class="flex gap-3">
-                    <button onclick="closeBidModal()" class="flex-1 px-4 py-3 rounded-xl font-semibold bg-gray-100 hover:bg-gray-200 transition-all">Cancel</button>
-                    <button id="submit-bid-btn" class="flex-[2] bg-lime-500 text-white font-bold py-3 rounded-xl hover:bg-lime-600 shadow-lg shadow-lime-200">Submit Bid</button>
+                    <button onclick="closeBidModal()" class="flex-1 px-4 py-3 rounded-xl font-semibold bg-gray-100">Cancel</button>
+                    <button id="submit-bid-btn" class="flex-[2] bg-lime-500 text-white font-bold py-3 rounded-xl hover:bg-lime-600">Submit Bid</button>
                 </div>
             </div>
         </div>
@@ -69,7 +78,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, where, onSnapshot, doc, getDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, where, onSnapshot, doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDn3dGe2dhgfrqwYENgWA1biEW8ngXv068",
@@ -86,76 +95,50 @@
 
         let activeErrandId = null;
 
-        // UI Helpers
+        // UI Logic
         window.calculateFees = (val) => {
             const amount = parseFloat(val) || 0;
-            const fee = amount * 0.20;
-            const takehome = amount - fee;
-            document.getElementById('fee-display').innerText = `-$${fee.toFixed(2)}`;
-            document.getElementById('takehome-display').innerText = `$${takehome.toFixed(2)}`;
+            document.getElementById('fee-display').innerText = `-$${(amount * 0.2).toFixed(2)}`;
+            document.getElementById('takehome-display').innerText = `$${(amount * 0.8).toFixed(2)}`;
         }
 
         window.openBidModal = (id, title, min, max) => {
             activeErrandId = id;
-            document.getElementById('modal-title').innerText = `Bid for: ${title}`;
-            document.getElementById('modal-budget').innerText = `Client Budget: $${min} - $${max}`;
-            document.getElementById('bid-modal').classList.remove('hidden');
-            document.getElementById('bid-modal').classList.add('flex');
+            document.getElementById('modal-title').innerText = title;
+            document.getElementById('modal-budget').innerText = `Budget: $${min} - $${max}`;
+            document.getElementById('bid-modal').classList.replace('hidden', 'flex');
         }
 
-        window.closeBidModal = () => {
-            document.getElementById('bid-modal').classList.add('hidden');
-            document.getElementById('bid-modal').classList.remove('flex');
-        }
+        window.closeBidModal = () => document.getElementById('bid-modal').classList.replace('flex', 'hidden');
 
-        // Auth Protection
+        // Main Logic
         onAuthStateChanged(auth, async (user) => {
             if (user) {
                 const userDoc = await getDoc(doc(db, "users", user.uid));
                 if (userDoc.exists() && userDoc.data().role === 'runner') {
                     document.getElementById('user-avatar').src = user.photoURL;
-                    loadAvailableErrands();
+                    loadFeed();
+                    loadActiveTasks(user.uid);
                 } else {
                     window.location.href = "index.html";
                 }
-            } else {
-                window.location.href = "index.html";
-            }
+            } else { window.location.href = "index.html"; }
         });
 
-        // Load Feed
-        function loadAvailableErrands() {
+        function loadFeed() {
             const q = query(collection(db, "errands"), where("status", "==", "OPEN"));
-            
-            onSnapshot(q, (snapshot) => {
+            onSnapshot(q, (snap) => {
                 const feed = document.getElementById('available-errands');
                 feed.innerHTML = '';
-                
-                snapshot.forEach((doc) => {
-                    const errand = doc.data();
+                snap.forEach(d => {
+                    const e = d.data();
                     feed.innerHTML += `
-                        <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between gap-4">
-                            <div class="flex-1">
-                                <div class="flex items-center gap-2 mb-2">
-                                    <span class="bg-lime-100 text-lime-700 text-[10px] font-black px-2 py-0.5 rounded tracking-tighter uppercase">Available</span>
-                                    <h3 class="text-lg font-bold text-gray-800">${errand.title}</h3>
-                                </div>
-                                <p class="text-gray-500 text-sm mb-4 line-clamp-2">${errand.description}</p>
-                                <div class="flex gap-4">
-                                    <span class="text-xs font-semibold text-gray-400 flex items-center gap-1">
-                                        <i data-lucide="tag" class="w-3 h-3"></i> Budget: $${errand.budgetMin}-$${errand.budgetMax}
-                                    </span>
-                                    <span class="text-xs font-semibold text-gray-400 flex items-center gap-1">
-                                        <i data-lucide="user" class="w-3 h-3"></i> Client: ${errand.clientName}
-                                    </span>
-                                </div>
+                        <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
+                            <div>
+                                <h3 class="font-bold text-gray-800">${e.title}</h3>
+                                <p class="text-sm text-gray-500">$${e.budgetMin} - $${e.budgetMax}</p>
                             </div>
-                            <div class="flex items-center">
-                                <button onclick="openBidModal('${doc.id}', '${errand.title}', ${errand.budgetMin}, ${errand.budgetMax})" 
-                                    class="w-full md:w-auto bg-gray-900 text-white px-8 py-3 rounded-xl font-bold hover:bg-lime-600 transition-all">
-                                    Place Bid
-                                </button>
-                            </div>
+                            <button onclick="openBidModal('${d.id}', '${e.title}', ${e.budgetMin}, ${e.budgetMax})" class="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold">Bid Now</button>
                         </div>
                     `;
                 });
@@ -163,34 +146,62 @@
             });
         }
 
-        // Submit Bid Logic
+        function loadActiveTasks(runnerId) {
+            const q = query(collection(db, "errands"), where("status", "==", "IN_PROGRESS"));
+            onSnapshot(q, (snap) => {
+                const container = document.getElementById('active-tasks');
+                container.innerHTML = '';
+                let hasTasks = false;
+
+                snap.forEach(async (d) => {
+                    const e = d.data();
+                    // Only show if the accepted bid belongs to this runner
+                    const bidDoc = await getDoc(doc(db, "bids", e.acceptedBidId));
+                    if (bidDoc.exists() && bidDoc.data().runnerId === runnerId) {
+                        hasTasks = true;
+                        container.innerHTML += `
+                            <div class="bg-white p-6 rounded-xl border-2 border-lime-500 shadow-md">
+                                <div class="flex justify-between items-start mb-4">
+                                    <div>
+                                        <h3 class="font-bold text-lg">${e.title}</h3>
+                                        <p class="text-sm text-gray-500">Client: ${e.clientName}</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <p class="text-xs text-gray-400">Escrow Locked</p>
+                                        <p class="text-lime-600 font-bold">$${e.finalPrice}</p>
+                                    </div>
+                                </div>
+                                <button onclick="completeErrand('${d.id}')" class="w-full bg-lime-500 text-white font-bold py-3 rounded-lg hover:bg-lime-600 transition-all">
+                                    Mark as Completed
+                                </button>
+                            </div>
+                        `;
+                    }
+                    if (!hasTasks) container.innerHTML = '<p class="text-gray-400 italic text-sm">No active tasks.</p>';
+                    lucide.createIcons();
+                });
+            });
+        }
+
+        window.completeErrand = async (id) => {
+            if (!confirm("Confirm completion to release funds?")) return;
+            await updateDoc(doc(db, "errands", id), { status: 'COMPLETED', completedAt: serverTimestamp() });
+            alert("Great job! Errand completed.");
+        }
+
         document.getElementById('submit-bid-btn').addEventListener('click', async () => {
             const amount = parseFloat(document.getElementById('bid-amount').value);
-            if (!amount || amount <= 0) return alert("Please enter a valid bid.");
-
-            const user = auth.currentUser;
-            const bidData = {
+            if (!amount) return;
+            await addDoc(collection(db, "bids"), {
                 errandId: activeErrandId,
-                runnerId: user.uid,
-                runnerName: user.displayName,
-                runnerPhoto: user.photoURL,
+                runnerId: auth.currentUser.uid,
+                runnerName: auth.currentUser.displayName,
+                runnerPhoto: auth.currentUser.photoURL,
                 bidAmount: amount,
-                platformFee: amount * 0.20,
-                runnerTakehome: amount * 0.80,
                 createdAt: serverTimestamp()
-            };
-
-            try {
-                await addDoc(collection(db, "bids"), bidData);
-                alert("Bid submitted successfully!");
-                closeBidModal();
-                document.getElementById('bid-amount').value = '';
-            } catch (err) {
-                console.error(err);
-                alert("Error submitting bid.");
-            }
+            });
+            closeBidModal();
         });
-
     </script>
 </body>
 </html>
