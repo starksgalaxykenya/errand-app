@@ -3,73 +3,414 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Errand | Runner Dashboard</title>
+    <title>ErrandPro | Runner Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&libraries=places"></script>
 </head>
 <body class="bg-gray-50 min-h-screen">
-
-    <nav class="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center sticky top-0 z-10">
-        <div class="flex items-center gap-2">
-            <div class="w-8 h-8 bg-lime-500 rounded flex items-center justify-center">
-                <i data-lucide="bike" class="text-white w-5 h-5"></i>
+    <!-- Navigation -->
+    <nav class="bg-white border-b border-gray-200 px-6 py-4 flex justify-between items-center sticky top-0 z-50">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 bg-gradient-to-r from-lime-500 to-green-500 rounded-lg flex items-center justify-center">
+                <i data-lucide="bike" class="text-white w-6 h-6"></i>
             </div>
-            <span class="text-xl font-bold text-gray-800 tracking-tight">Errand</span>
-            <span class="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded uppercase tracking-widest">Runner</span>
+            <div>
+                <span class="text-xl font-bold text-gray-800 tracking-tight">ErrandPro</span>
+                <span class="ml-2 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-full uppercase tracking-widest">Runner</span>
+            </div>
         </div>
-        <div id="user-profile" class="flex items-center gap-3">
-            <img id="user-avatar" src="" class="w-10 h-10 rounded-full border border-lime-200">
+        
+        <div class="flex items-center gap-4">
+            <div class="relative group">
+                <button onclick="toggleLocationFilter()" class="flex items-center gap-2 px-4 py-2 rounded-lg bg-gray-100 hover:bg-gray-200">
+                    <i data-lucide="map-pin" class="w-4 h-4"></i>
+                    <span id="location-filter">Near Me</span>
+                    <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                </button>
+                <div id="location-dropdown" class="absolute hidden bg-white rounded-xl shadow-lg border mt-2 p-2 min-w-[200px] z-50">
+                    <button onclick="setLocationFilter('near-me')" class="w-full text-left px-4 py-2 hover:bg-gray-50 rounded-lg">Near Me (5km)</button>
+                    <button onclick="setLocationFilter('same-city')" class="w-full text-left px-4 py-2 hover:bg-gray-50 rounded-lg">Same City</button>
+                    <button onclick="setLocationFilter('all')" class="w-full text-left px-4 py-2 hover:bg-gray-50 rounded-lg">All Errands</button>
+                </div>
+            </div>
+            
+            <div class="relative">
+                <i data-lucide="bell" class="w-6 h-6 text-gray-500 cursor-pointer"></i>
+                <span class="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></span>
+            </div>
+            
+            <div id="user-profile" class="flex items-center gap-3">
+                <img id="user-avatar" src="" class="w-10 h-10 rounded-full border-2 border-lime-200">
+                <div class="hidden md:block">
+                    <p id="user-name" class="font-semibold text-sm text-gray-800"></p>
+                    <p class="text-xs text-gray-500">Runner ID: <span id="user-id"></span></p>
+                </div>
+            </div>
         </div>
     </nav>
 
-    <main class="max-w-4xl mx-auto p-6">
-        <section class="mb-12">
-            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <i data-lucide="clock" class="text-lime-600"></i> My Active Tasks
-            </h2>
-            <div id="active-tasks" class="space-y-4">
-                <p class="text-gray-400 italic text-sm">No active tasks yet.</p>
+    <!-- Main Content -->
+    <main class="max-w-6xl mx-auto p-6">
+        <!-- Stats Overview -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Earnings Today</p>
+                        <p class="text-2xl font-bold text-gray-800" id="earnings-today">$0</p>
+                    </div>
+                    <div class="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                        <i data-lucide="dollar-sign" class="text-green-600 w-6 h-6"></i>
+                    </div>
+                </div>
             </div>
-        </section>
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Active Tasks</p>
+                        <p class="text-2xl font-bold text-gray-800" id="active-tasks-count">0</p>
+                    </div>
+                    <div class="w-12 h-12 bg-lime-100 rounded-lg flex items-center justify-center">
+                        <i data-lucide="clock" class="text-lime-600 w-6 h-6"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Completed</p>
+                        <p class="text-2xl font-bold text-gray-800" id="completed-tasks">0</p>
+                    </div>
+                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <i data-lucide="check-circle" class="text-blue-600 w-6 h-6"></i>
+                    </div>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Rating</p>
+                        <p class="text-2xl font-bold text-gray-800" id="runner-rating">4.8</p>
+                    </div>
+                    <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+                        <i data-lucide="star" class="text-yellow-600 w-6 h-6"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-        <section>
-            <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <i data-lucide="search" class="text-lime-600"></i> Browse Errands
-            </h2>
-            <div id="available-errands" class="space-y-4">
-                <div class="text-center py-10"><p class="text-gray-400 animate-pulse">Scanning...</p></div>
+        <!-- Two Column Layout -->
+        <div class="grid lg:grid-cols-3 gap-8">
+            <!-- Left Column: Active Tasks -->
+            <div class="lg:col-span-2">
+                <div class="mb-6">
+                    <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <i data-lucide="clock" class="text-lime-600"></i> My Active Tasks
+                    </h2>
+                    <div id="active-tasks" class="space-y-4">
+                        <p class="text-gray-400 italic text-sm">No active tasks yet.</p>
+                    </div>
+                </div>
+
+                <!-- Available Errands -->
+                <div>
+                    <h2 class="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+                        <i data-lucide="search" class="text-lime-600"></i> Available Errands
+                    </h2>
+                    <div id="available-errands" class="space-y-4">
+                        <div class="text-center py-10">
+                            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-lime-500 mx-auto mb-4"></div>
+                            <p class="text-gray-400">Finding errands near you...</p>
+                        </div>
+                    </div>
+                </div>
             </div>
-        </section>
+
+            <!-- Right Column: Profile & Quick Stats -->
+            <div class="space-y-6">
+                <!-- Profile Card -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <div class="text-center mb-4">
+                        <img id="profile-avatar" src="" class="w-20 h-20 rounded-full mx-auto mb-3 border-4 border-lime-100">
+                        <h3 id="profile-name" class="font-bold text-lg"></h3>
+                        <p class="text-gray-500 text-sm" id="profile-location"></p>
+                    </div>
+                    
+                    <div class="space-y-3">
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600 text-sm">Verification Status</span>
+                            <span id="kyc-status" class="px-3 py-1 rounded-full text-xs font-bold bg-yellow-100 text-yellow-600">
+                                Pending
+                            </span>
+                        </div>
+                        
+                        <div class="flex justify-between items-center">
+                            <span class="text-gray-600 text-sm">Transport Mode</span>
+                            <span id="transport-mode" class="text-sm font-semibold">Bike</span>
+                        </div>
+                        
+                        <div class="pt-4 border-t border-gray-100">
+                            <div class="flex justify-between mb-2">
+                                <span class="text-gray-600 text-sm">Available Balance</span>
+                                <span class="font-bold text-lg" id="available-balance">$0.00</span>
+                            </div>
+                            <button onclick="withdrawFunds()" class="w-full bg-lime-500 text-white py-3 rounded-lg font-bold hover:bg-lime-600">
+                                Withdraw to M-Pesa
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <h3 class="font-bold text-gray-800 mb-4">Quick Actions</h3>
+                    <div class="grid grid-cols-2 gap-3">
+                        <button onclick="toggleOnlineStatus()" class="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                            <i data-lucide="toggle-left" class="w-6 h-6 text-gray-600 mb-2"></i>
+                            <span class="block text-sm font-medium" id="online-status">Go Online</span>
+                        </button>
+                        <button onclick="updateLocation()" class="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                            <i data-lucide="map-pin" class="w-6 h-6 text-gray-600 mb-2"></i>
+                            <span class="block text-sm font-medium">Update Location</span>
+                        </button>
+                        <button onclick="viewEarnings()" class="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                            <i data-lucide="bar-chart" class="w-6 h-6 text-gray-600 mb-2"></i>
+                            <span class="block text-sm font-medium">View Earnings</span>
+                        </button>
+                        <button onclick="openHelp()" class="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                            <i data-lucide="help-circle" class="w-6 h-6 text-gray-600 mb-2"></i>
+                            <span class="block text-sm font-medium">Help</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Recent Activity -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <h3 class="font-bold text-gray-800 mb-4">Recent Activity</h3>
+                    <div id="recent-activity" class="space-y-3">
+                        <div class="flex items-center gap-3 text-sm">
+                            <div class="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                                <i data-lucide="check" class="w-3 h-3 text-green-600"></i>
+                            </div>
+                            <div>
+                                <p>Grocery delivery completed</p>
+                                <p class="text-xs text-gray-500">2 hours ago</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3 text-sm">
+                            <div class="w-8 h-8 bg-lime-100 rounded-full flex items-center justify-center">
+                                <i data-lucide="dollar-sign" class="w-3 h-3 text-lime-600"></i>
+                            </div>
+                            <div>
+                                <p>Payment received: $15.00</p>
+                                <p class="text-xs text-gray-500">Yesterday</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </main>
 
-    <div id="bid-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center p-4 z-50">
-        <div class="bg-white w-full max-w-md rounded-2xl p-8 shadow-2xl">
-            <h2 class="text-xl font-bold mb-2" id="modal-title">Place your bid</h2>
-            <p class="text-sm text-gray-500 mb-6" id="modal-budget"></p>
+    <!-- Errand Detail Modal -->
+    <div id="errand-detail-modal" class="fixed inset-0 bg-black/60 hidden items-center justify-center p-4 z-50 overflow-y-auto">
+        <div class="bg-white w-full max-w-2xl rounded-2xl p-8 my-8">
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <h2 id="detail-title" class="text-2xl font-bold text-gray-900 mb-2"></h2>
+                    <div id="detail-tags" class="flex gap-2"></div>
+                </div>
+                <button onclick="closeDetailModal()" class="text-gray-400 hover:text-gray-600">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+            
+            <div class="space-y-6">
+                <!-- Details -->
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-700 mb-2">Client Details</h3>
+                        <div class="flex items-center gap-3">
+                            <img id="detail-client-avatar" src="" class="w-10 h-10 rounded-full">
+                            <div>
+                                <p id="detail-client-name" class="font-bold"></p>
+                                <p class="text-xs text-gray-500" id="detail-client-rating"></p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-700 mb-2">Budget</h3>
+                        <p class="text-2xl font-bold text-lime-600" id="detail-budget"></p>
+                        <p class="text-sm text-gray-500">Includes 20% platform fee</p>
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <div>
+                    <h3 class="text-sm font-semibold text-gray-700 mb-2">Description</h3>
+                    <p id="detail-description" class="text-gray-700"></p>
+                </div>
+
+                <!-- Location & Time -->
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                            <i data-lucide="map-pin" class="w-4 h-4"></i>
+                            Location Details
+                        </h3>
+                        <div class="space-y-2">
+                            <p class="text-sm"><span class="font-medium">Pickup:</span> <span id="detail-pickup"></span></p>
+                            <p class="text-sm"><span class="font-medium">Delivery:</span> <span id="detail-delivery"></span></p>
+                            <p class="text-xs text-gray-500" id="detail-distance"></p>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <h3 class="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                            <i data-lucide="clock" class="w-4 h-4"></i>
+                            Time Details
+                        </h3>
+                        <div class="space-y-2">
+                            <p class="text-sm"><span class="font-medium">Estimated Time:</span> <span id="detail-time"></span></p>
+                            <p class="text-sm"><span class="font-medium">Urgency:</span> <span id="detail-urgency"></span></p>
+                            <p class="text-xs text-gray-500" id="detail-posted"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bid Form -->
+                <div id="bid-form-section">
+                    <h3 class="text-sm font-semibold text-gray-700 mb-4">Place Your Bid</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Your Bid Amount ($)</label>
+                            <div class="relative">
+                                <span class="absolute left-4 top-3 text-gray-400 font-bold">$</span>
+                                <input type="number" id="bid-amount" min="1" step="0.01"
+                                       oninput="calculateFees(this.value)"
+                                       class="w-full border-2 border-gray-100 rounded-xl p-3 pl-8 focus:border-lime-500 outline-none text-lg font-bold">
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium mb-2">Estimated Completion Time (hours)</label>
+                            <input type="number" id="bid-time" min="0.5" max="24" step="0.5" value="1"
+                                   class="w-full border-2 border-gray-100 rounded-xl p-3 focus:border-lime-500 outline-none">
+                        </div>
+
+                        <div class="bg-lime-50 rounded-xl p-4 space-y-2 border border-lime-100">
+                            <div class="flex justify-between text-sm">
+                                <span class="text-gray-600">Platform Fee (20%)</span>
+                                <span class="text-red-500 font-medium" id="fee-display">-$0.00</span>
+                            </div>
+                            <div class="flex justify-between border-t border-lime-200 pt-2 font-bold text-gray-800">
+                                <span>Your Take-home</span>
+                                <span class="text-lime-700" id="takehome-display">$0.00</span>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-3">
+                            <button onclick="closeDetailModal()" 
+                                    class="flex-1 px-4 py-3 rounded-xl font-semibold bg-gray-100 hover:bg-gray-200">
+                                Cancel
+                            </button>
+                            <button onclick="submitBid()" 
+                                    class="flex-[2] bg-lime-500 text-white font-bold py-3 rounded-xl hover:bg-lime-600">
+                                Submit Bid
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Already Bid Section -->
+                <div id="already-bid-section" class="hidden">
+                    <div class="bg-blue-50 rounded-xl p-6 text-center">
+                        <i data-lucide="check-circle" class="w-12 h-12 text-blue-500 mx-auto mb-3"></i>
+                        <h3 class="font-bold text-lg mb-2">Bid Submitted</h3>
+                        <p class="text-gray-600 mb-4">Your bid is pending client approval</p>
+                        <div class="inline-flex items-center gap-4 bg-white px-6 py-3 rounded-lg">
+                            <span class="text-gray-500">Your Bid:</span>
+                            <span class="text-xl font-bold text-lime-600" id="existing-bid-amount"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chat Modal -->
+    <div id="chat-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white w-full max-w-2xl h-[80vh] rounded-2xl flex flex-col">
+            <div class="p-6 border-b border-gray-200 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <img id="chat-client-avatar" src="" class="w-10 h-10 rounded-full">
+                    <div>
+                        <h3 id="chat-client-name" class="font-bold"></h3>
+                        <p class="text-sm text-gray-500" id="chat-errand-title"></p>
+                    </div>
+                </div>
+                <button onclick="toggleChatModal()" class="text-gray-400 hover:text-gray-600">
+                    <i data-lucide="x" class="w-6 h-6"></i>
+                </button>
+            </div>
+            
+            <div id="chat-messages" class="flex-1 overflow-y-auto p-6 space-y-4">
+                <!-- Messages will load here -->
+            </div>
+            
+            <div class="p-4 border-t border-gray-200">
+                <div class="flex gap-2">
+                    <input type="text" id="chat-input" placeholder="Type your message..." 
+                           class="flex-1 border border-gray-300 rounded-xl px-4 py-3 focus:outline-none focus:border-lime-500">
+                    <button onclick="sendMessage()" class="bg-lime-500 text-white p-3 rounded-xl hover:bg-lime-600">
+                        <i data-lucide="send" class="w-5 h-5"></i>
+                    </button>
+                    <button onclick="startVoiceCall()" class="bg-blue-500 text-white p-3 rounded-xl hover:bg-blue-600">
+                        <i data-lucide="phone" class="w-5 h-5"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Call Modal -->
+    <div id="call-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white rounded-2xl p-8 text-center max-w-sm">
+            <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i data-lucide="phone" class="text-blue-600 w-10 h-10"></i>
+            </div>
+            <h3 class="text-xl font-bold mb-2" id="call-to-name"></h3>
+            <p class="text-gray-500 mb-6">Connecting...</p>
+            <div class="flex justify-center gap-4">
+                <button onclick="endCall()" class="w-16 h-16 bg-red-500 text-white rounded-full hover:bg-red-600">
+                    <i data-lucide="phone-off" class="w-6 h-6 mx-auto"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Completion Confirmation Modal -->
+    <div id="completion-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center p-4 z-50">
+        <div class="bg-white w-full max-w-md rounded-2xl p-8">
+            <h2 class="text-xl font-bold mb-2">Complete Errand</h2>
+            <p class="text-sm text-gray-500 mb-6">Confirm completion to release payment</p>
             
             <div class="space-y-6">
                 <div>
-                    <label class="block text-sm font-semibold mb-2 text-gray-700">How much will you charge?</label>
-                    <div class="relative">
-                        <span class="absolute left-4 top-3 text-gray-400 font-bold">$</span>
-                        <input type="number" id="bid-amount" oninput="calculateFees(this.value)" placeholder="0.00" class="w-full border-2 border-gray-100 rounded-xl p-3 pl-8 focus:border-lime-500 outline-none text-lg font-bold">
-                    </div>
+                    <label class="block text-sm font-semibold mb-2 text-gray-700">Completion Notes (Optional)</label>
+                    <textarea id="completion-notes" rows="3" placeholder="Any notes about the errand..."
+                              class="w-full border-2 border-gray-100 rounded-xl p-3 focus:border-lime-500 outline-none"></textarea>
                 </div>
 
-                <div class="bg-lime-50 rounded-xl p-4 space-y-2 border border-lime-100">
-                    <div class="flex justify-between text-sm">
-                        <span class="text-gray-600">Platform Fee (20%)</span>
-                        <span class="text-red-500 font-medium" id="fee-display">-$0.00</span>
-                    </div>
-                    <div class="flex justify-between border-t border-lime-200 pt-2 font-bold text-gray-800">
-                        <span>Your Take-home</span>
-                        <span class="text-lime-700" id="takehome-display">$0.00</span>
-                    </div>
-                </div>
-
-                <div class="flex gap-3">
-                    <button onclick="closeBidModal()" class="flex-1 px-4 py-3 rounded-xl font-semibold bg-gray-100">Cancel</button>
-                    <button id="submit-bid-btn" class="flex-[2] bg-lime-500 text-white font-bold py-3 rounded-xl hover:bg-lime-600">Submit Bid</button>
+                <div class="grid grid-cols-2 gap-3">
+                    <button onclick="markErrandComplete()" class="bg-lime-500 text-white font-bold py-3 rounded-xl hover:bg-lime-600">
+                        Mark Complete
+                    </button>
+                    <button onclick="closeCompletionModal()" class="bg-gray-100 text-gray-700 font-bold py-3 rounded-xl hover:bg-gray-200">
+                        Cancel
+                    </button>
                 </div>
             </div>
         </div>
@@ -78,7 +419,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, where, onSnapshot, doc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, where, onSnapshot, doc, getDoc, updateDoc, serverTimestamp, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyDn3dGe2dhgfrqwYENgWA1biEW8ngXv068",
@@ -93,115 +434,540 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
-        let activeErrandId = null;
+        let currentUser = null;
+        let currentErrandId = null;
+        let currentChatId = null;
+        let currentClientId = null;
+        let userLocation = null;
+        let locationFilter = 'near-me';
+        let onlineStatus = false;
 
-        // UI Logic
-        window.calculateFees = (val) => {
-            const amount = parseFloat(val) || 0;
-            document.getElementById('fee-display').innerText = `-$${(amount * 0.2).toFixed(2)}`;
-            document.getElementById('takehome-display').innerText = `$${(amount * 0.8).toFixed(2)}`;
-        }
-
-        window.openBidModal = (id, title, min, max) => {
-            activeErrandId = id;
-            document.getElementById('modal-title').innerText = title;
-            document.getElementById('modal-budget').innerText = `Budget: $${min} - $${max}`;
-            document.getElementById('bid-modal').classList.replace('hidden', 'flex');
-        }
-
-        window.closeBidModal = () => document.getElementById('bid-modal').classList.replace('flex', 'hidden');
-
-        // Main Logic
+        // Initialize
         onAuthStateChanged(auth, async (user) => {
             if (user) {
+                currentUser = user;
                 const userDoc = await getDoc(doc(db, "users", user.uid));
                 if (userDoc.exists() && userDoc.data().role === 'runner') {
-                    document.getElementById('user-avatar').src = user.photoURL;
-                    loadFeed();
+                    document.getElementById('user-avatar').src = user.photoURL || 'https://via.placeholder.com/150';
+                    document.getElementById('profile-avatar').src = user.photoURL || 'https://via.placeholder.com/150';
+                    document.getElementById('user-name').textContent = userDoc.data().displayName || 'Runner';
+                    document.getElementById('profile-name').textContent = userDoc.data().displayName || 'Runner';
+                    document.getElementById('user-id').textContent = user.uid.substring(0, 8);
+                    document.getElementById('profile-location').textContent = userDoc.data().location?.address || 'Location not set';
+                    document.getElementById('transport-mode').textContent = userDoc.data().transportMode || 'Not set';
+                    document.getElementById('kyc-status').textContent = userDoc.data().kycStatus || 'Pending';
+                    
+                    userLocation = userDoc.data().location;
                     loadActiveTasks(user.uid);
+                    loadAvailableErrands();
+                    loadStats(user.uid);
                 } else {
                     window.location.href = "index.html";
                 }
-            } else { window.location.href = "index.html"; }
+            } else { 
+                window.location.href = "index.html"; 
+            }
         });
 
-        function loadFeed() {
-            const q = query(collection(db, "errands"), where("status", "==", "OPEN"));
-            onSnapshot(q, (snap) => {
-                const feed = document.getElementById('available-errands');
+        // Location Filter
+        window.toggleLocationFilter = () => {
+            const dropdown = document.getElementById('location-dropdown');
+            dropdown.classList.toggle('hidden');
+        };
+
+        window.setLocationFilter = (filter) => {
+            locationFilter = filter;
+            document.getElementById('location-filter').textContent = 
+                filter === 'near-me' ? 'Near Me' : 
+                filter === 'same-city' ? 'Same City' : 'All Errands';
+            document.getElementById('location-dropdown').classList.add('hidden');
+            loadAvailableErrands();
+        };
+
+        // Load Available Errands with Filters
+        function loadAvailableErrands() {
+            let q = query(collection(db, "errands"), 
+                         where("status", "==", "OPEN"),
+                         orderBy("createdAt", "desc"));
+            
+            const feed = document.getElementById('available-errands');
+            feed.innerHTML = '<div class="animate-pulse"><div class="h-32 bg-gray-200 rounded-xl"></div></div>';
+            
+            onSnapshot(q, async (snapshot) => {
                 feed.innerHTML = '';
-                snap.forEach(d => {
-                    const e = d.data();
-                    feed.innerHTML += `
-                        <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
-                            <div>
-                                <h3 class="font-bold text-gray-800">${e.title}</h3>
-                                <p class="text-sm text-gray-500">$${e.budgetMin} - $${e.budgetMax}</p>
+                
+                if (snapshot.empty) {
+                    feed.innerHTML = `
+                        <div class="text-center py-10 bg-white rounded-xl border-2 border-dashed border-gray-100">
+                            <i data-lucide="package-x" class="w-12 h-12 text-gray-300 mx-auto mb-3"></i>
+                            <p class="text-gray-400">No errands available</p>
+                            <p class="text-gray-500 text-sm mt-1">Check back later</p>
+                        </div>`;
+                    return;
+                }
+
+                for (const errandDoc of snapshot.docs) {
+                    const errand = errandDoc.data();
+                    const errandId = errandDoc.id;
+                    
+                    // Check if runner has already bid on this errand
+                    const bidQuery = query(
+                        collection(db, "bids"),
+                        where("errandId", "==", errandId),
+                        where("runnerId", "==", currentUser.uid)
+                    );
+                    
+                    const bidSnapshot = await getDocs(bidQuery);
+                    const hasBid = !bidSnapshot.empty;
+                    const bidStatus = hasBid ? bidSnapshot.docs[0].data().status : null;
+                    
+                    // Skip if bid was rejected
+                    if (bidStatus === 'REJECTED') continue;
+                    
+                    // Apply location filter
+                    if (locationFilter === 'near-me' && userLocation) {
+                        // In real implementation, calculate distance
+                        // For now, show all
+                    }
+                    
+                    const errandCard = document.createElement('div');
+                    errandCard.className = 'bg-white p-5 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow cursor-pointer';
+                    errandCard.innerHTML = `
+                        <div class="flex justify-between items-start">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded">${errand.category || 'General'}</span>
+                                    <span class="text-xs text-gray-500">
+                                        ${new Date(errand.createdAt?.toDate()).toLocaleDateString()}
+                                    </span>
+                                </div>
+                                <h3 class="font-bold text-gray-800 mb-1">${errand.title}</h3>
+                                <p class="text-sm text-gray-600 mb-2 line-clamp-2">${errand.description}</p>
+                                
+                                <div class="flex flex-wrap gap-4 text-xs text-gray-500">
+                                    <span class="flex items-center gap-1">
+                                        <i data-lucide="map-pin" class="w-3 h-3"></i>
+                                        ${errand.location?.pickup?.substring(0, 30) || 'Location not specified'}
+                                    </span>
+                                    <span class="flex items-center gap-1">
+                                        <i data-lucide="clock" class="w-3 h-3"></i>
+                                        ${errand.estimatedTime || 1} hrs
+                                    </span>
+                                    <span class="flex items-center gap-1">
+                                        <i data-lucide="dollar-sign" class="w-3 h-3"></i>
+                                        $${errand.budgetMin} - $${errand.budgetMax}
+                                    </span>
+                                </div>
                             </div>
-                            <button onclick="openBidModal('${d.id}', '${e.title}', ${e.budgetMin}, ${e.budgetMax})" class="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold">Bid Now</button>
+                            
+                            <div class="text-right ml-4">
+                                ${hasBid ? `
+                                    <span class="px-3 py-1 bg-lime-100 text-lime-700 text-xs font-bold rounded-full">
+                                        Bid Submitted
+                                    </span>
+                                ` : `
+                                    <button onclick="event.stopPropagation(); openErrandDetail('${errandId}')" 
+                                            class="bg-gray-900 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-lime-600">
+                                        View Details
+                                    </button>
+                                `}
+                            </div>
                         </div>
                     `;
-                });
+                    
+                    errandCard.onclick = () => openErrandDetail(errandId);
+                    feed.appendChild(errandCard);
+                }
+                
                 lucide.createIcons();
             });
         }
 
-        function loadActiveTasks(runnerId) {
-            const q = query(collection(db, "errands"), where("status", "==", "IN_PROGRESS"));
-            onSnapshot(q, (snap) => {
-                const container = document.getElementById('active-tasks');
-                container.innerHTML = '';
-                let hasTasks = false;
+        // Open Errand Detail
+        window.openErrandDetail = async (errandId) => {
+            currentErrandId = errandId;
+            
+            const errandDoc = await getDoc(doc(db, "errands", errandId));
+            if (!errandDoc.exists()) return;
+            
+            const errand = errandDoc.data();
+            
+            // Populate modal
+            document.getElementById('detail-title').textContent = errand.title;
+            document.getElementById('detail-description').textContent = errand.description;
+            document.getElementById('detail-budget').textContent = `$${errand.budgetMin} - $${errand.budgetMax}`;
+            document.getElementById('detail-pickup').textContent = errand.location?.pickup || 'Not specified';
+            document.getElementById('detail-delivery').textContent = errand.location?.delivery || 'Not specified';
+            document.getElementById('detail-time').textContent = `${errand.estimatedTime} hours`;
+            document.getElementById('detail-urgency').textContent = errand.urgency || 'Medium';
+            document.getElementById('detail-posted').textContent = `Posted ${new Date(errand.createdAt?.toDate()).toLocaleString()}`;
+            
+            // Client info
+            const clientDoc = await getDoc(doc(db, "users", errand.clientId));
+            if (clientDoc.exists()) {
+                const client = clientDoc.data();
+                document.getElementById('detail-client-name').textContent = client.displayName;
+                document.getElementById('detail-client-avatar').src = client.photoURL || 'https://via.placeholder.com/150';
+            }
+            
+            // Check if already bid
+            const bidQuery = query(
+                collection(db, "bids"),
+                where("errandId", "==", errandId),
+                where("runnerId", "==", currentUser.uid)
+            );
+            
+            const bidSnapshot = await getDocs(bidQuery);
+            const hasBid = !bidSnapshot.empty;
+            
+            if (hasBid) {
+                document.getElementById('bid-form-section').classList.add('hidden');
+                document.getElementById('already-bid-section').classList.remove('hidden');
+                document.getElementById('existing-bid-amount').textContent = 
+                    `$${bidSnapshot.docs[0].data().bidAmount}`;
+            } else {
+                document.getElementById('bid-form-section').classList.remove('hidden');
+                document.getElementById('already-bid-section').classList.add('hidden');
+            }
+            
+            document.getElementById('errand-detail-modal').style.display = 'flex';
+        };
 
-                snap.forEach(async (d) => {
-                    const e = d.data();
-                    // Only show if the accepted bid belongs to this runner
-                    const bidDoc = await getDoc(doc(db, "bids", e.acceptedBidId));
-                    if (bidDoc.exists() && bidDoc.data().runnerId === runnerId) {
-                        hasTasks = true;
+        window.closeDetailModal = () => {
+            document.getElementById('errand-detail-modal').style.display = 'none';
+        };
+
+        // Bid Functions
+        window.calculateFees = (val) => {
+            const amount = parseFloat(val) || 0;
+            document.getElementById('fee-display').innerText = `-$${(amount * 0.2).toFixed(2)}`;
+            document.getElementById('takehome-display').innerText = `$${(amount * 0.8).toFixed(2)}`;
+        };
+
+        window.submitBid = async () => {
+            const amount = parseFloat(document.getElementById('bid-amount').value);
+            const estimatedTime = parseFloat(document.getElementById('bid-time').value);
+            
+            if (!amount || amount < 1) {
+                alert("Please enter a valid bid amount");
+                return;
+            }
+
+            try {
+                await addDoc(collection(db, "bids"), {
+                    errandId: currentErrandId,
+                    runnerId: currentUser.uid,
+                    runnerName: currentUser.displayName,
+                    runnerPhoto: currentUser.photoURL,
+                    runnerLocation: userLocation,
+                    bidAmount: amount,
+                    estimatedCompletionTime: estimatedTime,
+                    status: 'PENDING',
+                    createdAt: serverTimestamp()
+                });
+                
+                closeDetailModal();
+                alert("Bid submitted successfully!");
+            } catch (error) {
+                console.error("Error submitting bid:", error);
+                alert("Failed to submit bid. Please try again.");
+            }
+        };
+
+        // Load Active Tasks
+        function loadActiveTasks(runnerId) {
+            const container = document.getElementById('active-tasks');
+            
+            // Listen for errands where runner's bid was accepted
+            const bidsQuery = query(
+                collection(db, "bids"),
+                where("runnerId", "==", runnerId),
+                where("status", "==", "ACCEPTED")
+            );
+            
+            onSnapshot(bidsQuery, async (snapshot) => {
+                container.innerHTML = '';
+                
+                if (snapshot.empty) {
+                    container.innerHTML = `
+                        <div class="text-center py-8 bg-white rounded-xl border-2 border-dashed border-gray-100">
+                            <i data-lucide="clock" class="w-12 h-12 text-gray-300 mx-auto mb-3"></i>
+                            <p class="text-gray-400">No active tasks</p>
+                            <p class="text-gray-500 text-sm mt-1">Browse available errands</p>
+                        </div>`;
+                    return;
+                }
+                
+                for (const bidDoc of snapshot.docs) {
+                    const bid = bidDoc.data();
+                    const errandDoc = await getDoc(doc(db, "errands", bid.errandId));
+                    
+                    if (errandDoc.exists() && errandDoc.data().status === 'IN_PROGRESS') {
+                        const errand = errandDoc.data();
+                        
                         container.innerHTML += `
                             <div class="bg-white p-6 rounded-xl border-2 border-lime-500 shadow-md">
                                 <div class="flex justify-between items-start mb-4">
                                     <div>
-                                        <h3 class="font-bold text-lg">${e.title}</h3>
-                                        <p class="text-sm text-gray-500">Client: ${e.clientName}</p>
+                                        <h3 class="font-bold text-lg text-gray-900">${errand.title}</h3>
+                                        <div class="flex items-center gap-2 mt-2">
+                                            <img src="${await getClientPhoto(errand.clientId)}" 
+                                                 class="w-6 h-6 rounded-full">
+                                            <p class="text-sm text-gray-600">Client: ${errand.clientName}</p>
+                                        </div>
+                                        <div class="mt-3 space-y-1 text-sm text-gray-500">
+                                            <p class="flex items-center gap-1">
+                                                <i data-lucide="map-pin" class="w-3 h-3"></i>
+                                                ${errand.location?.pickup}
+                                            </p>
+                                            ${errand.location?.delivery ? `
+                                                <p class="flex items-center gap-1">
+                                                    <i data-lucide="map-pin" class="w-3 h-3"></i>
+                                                    Deliver to: ${errand.location.delivery}
+                                                </p>
+                                            ` : ''}
+                                            <p class="flex items-center gap-1">
+                                                <i data-lucide="clock" class="w-3 h-3"></i>
+                                                Estimated: ${errand.estimatedTime} hours
+                                            </p>
+                                        </div>
                                     </div>
                                     <div class="text-right">
-                                        <p class="text-xs text-gray-400">Escrow Locked</p>
-                                        <p class="text-lime-600 font-bold">$${e.finalPrice}</p>
+                                        <p class="text-xs text-gray-400">Escrow Amount</p>
+                                        <p class="text-lime-600 font-bold text-xl">$${errand.finalPrice || errand.budgetMax}</p>
                                     </div>
                                 </div>
-                                <button onclick="completeErrand('${d.id}')" class="w-full bg-lime-500 text-white font-bold py-3 rounded-lg hover:bg-lime-600 transition-all">
-                                    Mark as Completed
-                                </button>
-                            </div>
-                        `;
+                                
+                                <div class="flex gap-3 mt-4">
+                                    <button onclick="openChat('${errand.clientId}', '${bid.errandId}', '${errand.clientName}', '', '${errand.title}')"
+                                            class="flex-1 bg-gray-100 text-gray-700 font-bold py-3 rounded-lg hover:bg-gray-200 transition-all flex items-center justify-center gap-2">
+                                        <i data-lucide="message-square" class="w-4 h-4"></i>
+                                        Chat with Client
+                                    </button>
+                                    <button onclick="openCompletionConfirmation('${bid.errandId}')"
+                                            class="flex-1 bg-lime-500 text-white font-bold py-3 rounded-lg hover:bg-lime-600 transition-all flex items-center justify-center gap-2">
+                                        <i data-lucide="check-circle" class="w-4 h-4"></i>
+                                        Mark as Complete
+                                    </button>
+                                </div>
+                            </div>`;
                     }
-                    if (!hasTasks) container.innerHTML = '<p class="text-gray-400 italic text-sm">No active tasks.</p>';
-                    lucide.createIcons();
-                });
+                }
+                
+                lucide.createIcons();
             });
         }
 
-        window.completeErrand = async (id) => {
-            if (!confirm("Confirm completion to release funds?")) return;
-            await updateDoc(doc(db, "errands", id), { status: 'COMPLETED', completedAt: serverTimestamp() });
-            alert("Great job! Errand completed.");
+        // Chat Functions
+        window.toggleChatModal = () => {
+            const modal = document.getElementById('chat-modal');
+            modal.style.display = modal.style.display === 'flex' ? 'none' : 'flex';
+        };
+
+        window.openChat = async (clientId, errandId, clientName, clientPhoto, errandTitle) => {
+            currentClientId = clientId;
+            currentErrandId = errandId;
+            
+            document.getElementById('chat-client-name').textContent = clientName;
+            document.getElementById('chat-client-avatar').src = clientPhoto || 'https://via.placeholder.com/150';
+            document.getElementById('chat-errand-title').textContent = errandTitle;
+            
+            // Create or get chat
+            const chatQuery = query(
+                collection(db, "chats"),
+                where("errandId", "==", errandId),
+                where("participants", "array-contains", currentUser.uid)
+            );
+            
+            const snapshot = await getDocs(chatQuery);
+            if (snapshot.empty) {
+                const chatRef = await addDoc(collection(db, "chats"), {
+                    errandId,
+                    clientId,
+                    runnerId: currentUser.uid,
+                    lastMessage: "",
+                    lastMessageAt: serverTimestamp(),
+                    participants: [clientId, currentUser.uid]
+                });
+                currentChatId = chatRef.id;
+            } else {
+                currentChatId = snapshot.docs[0].id;
+            }
+            
+            loadChatMessages(currentChatId);
+            toggleChatModal();
+        };
+
+        async function loadChatMessages(chatId) {
+            const q = query(
+                collection(db, "messages"),
+                where("chatId", "==", chatId),
+                orderBy("createdAt", "asc")
+            );
+            
+            const messagesContainer = document.getElementById('chat-messages');
+            
+            onSnapshot(q, (snapshot) => {
+                messagesContainer.innerHTML = '';
+                
+                snapshot.forEach((doc) => {
+                    const message = doc.data();
+                    const isSender = message.senderId === currentUser.uid;
+                    
+                    const messageDiv = document.createElement('div');
+                    messageDiv.className = `flex ${isSender ? 'justify-end' : 'justify-start'}`;
+                    
+                    messageDiv.innerHTML = `
+                        <div class="max-w-[70%] ${isSender ? 'bg-lime-100' : 'bg-gray-100'} rounded-2xl p-3 ${isSender ? 'rounded-br-none' : 'rounded-bl-none'}">
+                            <p class="text-sm">${message.content}</p>
+                            <p class="text-xs text-gray-500 mt-1 text-right">
+                                ${new Date(message.createdAt?.toDate()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            </p>
+                        </div>
+                    `;
+                    
+                    messagesContainer.appendChild(messageDiv);
+                });
+                
+                // Scroll to bottom
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            });
         }
 
-        document.getElementById('submit-bid-btn').addEventListener('click', async () => {
-            const amount = parseFloat(document.getElementById('bid-amount').value);
-            if (!amount) return;
-            await addDoc(collection(db, "bids"), {
-                errandId: activeErrandId,
-                runnerId: auth.currentUser.uid,
-                runnerName: auth.currentUser.displayName,
-                runnerPhoto: auth.currentUser.photoURL,
-                bidAmount: amount,
+        window.sendMessage = async () => {
+            const input = document.getElementById('chat-input');
+            const content = input.value.trim();
+            
+            if (!content || !currentChatId) return;
+            
+            await addDoc(collection(db, "messages"), {
+                chatId: currentChatId,
+                senderId: currentUser.uid,
+                content: content,
+                type: 'text',
                 createdAt: serverTimestamp()
             });
-            closeBidModal();
-        });
+            
+            // Update chat last message
+            await updateDoc(doc(db, "chats", currentChatId), {
+                lastMessage: content,
+                lastMessageAt: serverTimestamp()
+            });
+            
+            input.value = '';
+        };
+
+        // Completion Functions
+        window.openCompletionConfirmation = (errandId) => {
+            currentErrandId = errandId;
+            document.getElementById('completion-modal').style.display = 'flex';
+        };
+
+        window.closeCompletionModal = () => {
+            document.getElementById('completion-modal').style.display = 'none';
+        };
+
+        window.markErrandComplete = async () => {
+            const notes = document.getElementById('completion-notes').value;
+            
+            await updateDoc(doc(db, "errands", currentErrandId), {
+                status: 'COMPLETED',
+                runnerCompletionNotes: notes,
+                completedAt: serverTimestamp()
+            });
+            
+            closeCompletionModal();
+            alert("Errand marked as complete! Waiting for client confirmation.");
+        };
+
+        // Utility Functions
+        async function getClientPhoto(clientId) {
+            const doc = await getDoc(doc(db, "users", clientId));
+            return doc.exists() ? (doc.data().photoURL || 'https://via.placeholder.com/150') : 'https://via.placeholder.com/150';
+        }
+
+        async function loadStats(runnerId) {
+            // Load earnings and stats
+            const bidsQuery = query(collection(db, "bids"), where("runnerId", "==", runnerId));
+            
+            onSnapshot(bidsQuery, async (snapshot) => {
+                let stats = {
+                    earningsToday: 0,
+                    activeTasks: 0,
+                    completedTasks: 0,
+                    totalEarnings: 0
+                };
+                
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                
+                for (const bidDoc of snapshot.docs) {
+                    const bid = bidDoc.data();
+                    
+                    if (bid.status === 'ACCEPTED') {
+                        const errandDoc = await getDoc(doc(db, "errands", bid.errandId));
+                        if (errandDoc.exists()) {
+                            const errand = errandDoc.data();
+                            
+                            if (errand.status === 'COMPLETED') {
+                                stats.completedTasks++;
+                                stats.totalEarnings += (bid.bidAmount * 0.8); // 80% after fees
+                                
+                                // Check if completed today
+                                if (errand.completedAt && errand.completedAt.toDate() >= today) {
+                                    stats.earningsToday += (bid.bidAmount * 0.8);
+                                }
+                            } else if (errand.status === 'IN_PROGRESS') {
+                                stats.activeTasks++;
+                            }
+                        }
+                    }
+                }
+                
+                document.getElementById('earnings-today').textContent = `$${stats.earningsToday.toFixed(2)}`;
+                document.getElementById('active-tasks-count').textContent = stats.activeTasks;
+                document.getElementById('completed-tasks').textContent = stats.completedTasks;
+                document.getElementById('available-balance').textContent = `$${stats.totalEarnings.toFixed(2)}`;
+            });
+        }
+
+        // Quick Actions
+        window.toggleOnlineStatus = () => {
+            onlineStatus = !onlineStatus;
+            document.getElementById('online-status').textContent = onlineStatus ? 'Online' : 'Offline';
+            document.getElementById('online-status').parentElement.classList.toggle('bg-lime-100');
+        };
+
+        window.withdrawFunds = async () => {
+            const amount = parseFloat(document.getElementById('available-balance').textContent.replace('$', ''));
+            
+            if (amount <= 0) {
+                alert("No funds available to withdraw");
+                return;
+            }
+            
+            // In real implementation, integrate with M-Pesa B2C API
+            const mpesaNumber = prompt("Enter M-Pesa number to withdraw to:");
+            if (mpesaNumber && mpesaNumber.length >= 9) {
+                alert(`Withdrawal request of $${amount} to ${mpesaNumber} submitted. Funds will arrive in 5-10 minutes.`);
+                // Here you would call your backend to process M-Pesa B2C
+            }
+        };
+
+        // In-app Calling
+        window.startVoiceCall = async () => {
+            // Integrate with WebRTC service (Agora, Twilio, etc.)
+            document.getElementById('call-to-name').textContent = 
+                document.getElementById('chat-client-name').textContent;
+            document.getElementById('call-modal').style.display = 'flex';
+        };
+
+        window.endCall = () => {
+            document.getElementById('call-modal').style.display = 'none';
+        };
+
+        // Initialize icons
+        lucide.createIcons();
     </script>
 </body>
 </html>
